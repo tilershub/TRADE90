@@ -5,13 +5,12 @@ import RelatedArticles from "@/components/RelatedArticles";
 
 export const revalidate = 60;
 
-// ✅ Next 15 PageProps expects params as a Promise
 type PageProps = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
 
-  const sb = supabaseServer();
+  const sb = await supabaseServer();
   const { data } = await sb
     .from("posts")
     .select("title, excerpt, meta_title, meta_description, featured_image, slug, published")
@@ -35,7 +34,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function PostPage({ params }: PageProps) {
   const { slug } = await params;
 
-  const sb = supabaseServer();
+  const sb = await supabaseServer();
   const { data: post } = await sb.from("posts").select("*").eq("slug", slug).single();
 
   if (!post || !post.published) return <div className="text-gray-600">Post not found.</div>;
@@ -54,17 +53,10 @@ export default async function PostPage({ params }: PageProps) {
 
   return (
     <article className="max-w-4xl mx-auto">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       {post.featured_image && (
-        <img
-          src={post.featured_image}
-          alt={post.title}
-          className="w-full h-80 object-cover rounded-xl mb-6"
-        />
+        <img src={post.featured_image} alt={post.title} className="w-full h-80 object-cover rounded-xl mb-6" />
       )}
 
       <div className="inline-block bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-sm mb-4">
