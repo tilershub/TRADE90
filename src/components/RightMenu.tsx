@@ -63,9 +63,6 @@ export default function RightMenu({ open, onClose }: Props) {
           <Link onClick={onClose} className="block py-2 text-gray-800 hover:text-emerald-600" href="/terms">
             Terms / Risk Disclaimer
           </Link>
-          <Link onClick={onClose} className="block py-2 text-gray-800 hover:text-emerald-600" href="/admin">
-            Admin
-          </Link>
         </nav>
       </aside>
     </>
