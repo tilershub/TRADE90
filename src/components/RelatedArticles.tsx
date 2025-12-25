@@ -2,7 +2,7 @@ import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export default async function RelatedArticles({ current }: { current: { id: string; category: string } }) {
-  const sb = supabaseServer();
+  const sb = await supabaseServer();
   const { data } = await sb
     .from("posts")
     .select("title, slug, excerpt, category")
