@@ -3,7 +3,7 @@ import { SITE_URL } from "@/lib/constants";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const sb = supabaseServer();
+  const sb = await supabaseServer();
   const { data } = await sb.from("posts").select("slug, updated_at").eq("published", true);
 
   const staticRoutes = ["", "/about", "/contact", "/privacy", "/terms"].map((p) => ({
