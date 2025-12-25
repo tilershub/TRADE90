@@ -4,7 +4,7 @@ import PostCard, { Post } from "@/components/PostCard";
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const sb = supabaseServer();
+  const sb = await supabaseServer();
 
   const { data: featured } = await sb
     .from("posts")
