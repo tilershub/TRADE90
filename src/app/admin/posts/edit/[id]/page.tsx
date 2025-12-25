@@ -18,7 +18,7 @@ function slugify(input: string) {
 
 export default function AdminPostEditor() {
   const supabase = supabaseBrowser();
-  const params = useParams<{ id: string }>();
+  const params = useParams<{ id?: string }>();
   const router = useRouter();
 
   const postId = params?.id; // undefined in create mode
@@ -28,7 +28,6 @@ export default function AdminPostEditor() {
   const [deleting, setDeleting] = useState(false);
 
   const [cats, setCats] = useState<string[]>(CATEGORIES_FALLBACK);
-
   const [post, setPost] = useState<PostRow | null>(null);
 
   // form fields
@@ -99,7 +98,7 @@ export default function AdminPostEditor() {
       if (postId) {
         await loadPost();
       } else {
-        // Create mode: ensure empty form and allow editing
+        // Create mode: empty form
         setPost(null);
         setTitle("");
         setSlug("");
@@ -145,9 +144,9 @@ export default function AdminPostEditor() {
 
       const { data } = supabase.storage.from("blog-images").getPublicUrl(fileName);
       setFeaturedImage(data.publicUrl);
-    } catch (e) {
-      console.error(e);
-      alert("Upload failed. Check bucket name + policies (blog-images).");
+    } catch (e: any) {
+      console.error("Upload error:", e);
+      alert(`Upload failed: ${e?.message ?? "Unknown error"}`);
     } finally {
       setUploading(false);
     }
@@ -156,11 +155,20 @@ export default function AdminPostEditor() {
   async function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
+
     await uploadImage(f);
+
+    // ✅ iPhone/Safari fix: reset input so same file can be reselected
+    e.target.value = "";
   }
 
   // ✅ Create + Update in one function
   async function save() {
+    if (uploading) {
+      alert("Image is still uploading. Please wait 2–5 seconds and try again.");
+      return;
+    }
+
     if (!canSave) {
       alert(published ? "Please fill Title, Slug, and Content to publish." : "Please fill Title and Slug.");
       return;
@@ -245,7 +253,7 @@ export default function AdminPostEditor() {
 
   if (loading) return <div className="p-6">Loading editor…</div>;
 
-  // Only show not-found if we are in edit mode with an id
+  // Only show not-found if edit mode has an id
   if (!post && postId) {
     return (
       <div className="p-6">
@@ -276,13 +284,24 @@ export default function AdminPostEditor() {
             </Link>
           )}
 
+          {/* ✅ Save no longer disabled by uploading */}
           <button
             onClick={save}
-            disabled={saving || uploading || !canSave}
+            disabled={saving || !canSave}
             className="px-4 py-2 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-60"
           >
             {saving ? "Saving…" : postId ? "Save" : "Create"}
           </button>
+
+          {/* ✅ show why disabled */}
+          <div className="hidden md:block text-[11px] text-gray-500 self-center">
+            {saving && "Saving… "}
+            {uploading && "Uploading image… "}
+            {!canSave &&
+              (published
+                ? "Need Title + Slug + Content to publish."
+                : "Need Title + Slug to save draft.")}
+          </div>
 
           {postId && (
             <button
@@ -308,7 +327,13 @@ export default function AdminPostEditor() {
                 <input
                   className="w-full border rounded-lg px-4 py-2 mt-1"
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setTitle(v);
+
+                    // ✅ auto-generate slug only when empty
+                    if (!slug.trim()) setSlug(slugify(v));
+                  }}
                   placeholder="Post title"
                 />
               </div>
