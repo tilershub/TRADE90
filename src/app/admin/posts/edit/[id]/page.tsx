@@ -21,7 +21,7 @@ export default function AdminPostEditor() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
 
-  const postId = params?.id;
+  const postId = params?.id; // undefined in create mode
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -53,13 +53,11 @@ export default function AdminPostEditor() {
   const seoTitleCount = metaTitle.length;
   const seoDescCount = metaDescription.length;
 
+  // ✅ Draft can save without content. Publish requires content.
   const canSave = useMemo(() => {
-  // Draft can be saved without content
-  if (!published) return title.trim().length > 0 && slug.trim().length > 0;
-
-  // If publishing, require content too
-  return title.trim().length > 0 && slug.trim().length > 0 && content.trim().length > 0;
-}, [title, slug, content, published]);
+    if (!published) return title.trim().length > 0 && slug.trim().length > 0;
+    return title.trim().length > 0 && slug.trim().length > 0 && content.trim().length > 0;
+  }, [title, slug, content, published]);
 
   async function loadCategories() {
     const { data } = await supabase.from("categories").select("name").order("name");
@@ -69,15 +67,9 @@ export default function AdminPostEditor() {
 
   async function loadPost() {
     if (!postId) return;
-    setLoading(true);
-
-    await loadCategories();
 
     const { data, error } = await supabase.from("posts").select("*").eq("id", postId).single();
-    if (error || !data) {
-      setLoading(false);
-      return;
-    }
+    if (error || !data) return;
 
     setPost(data);
 
@@ -96,22 +88,43 @@ export default function AdminPostEditor() {
     setMetaTitle(data.meta_title || "");
     setMetaDescription(data.meta_description || "");
     setKeywords(data.keywords || "");
-
-    setLoading(false);
   }
 
+  // ✅ Fix loading for both Create + Edit
   useEffect(() => {
-    loadPost();
+    (async () => {
+      setLoading(true);
+      await loadCategories();
+
+      if (postId) {
+        await loadPost();
+      } else {
+        // Create mode: ensure empty form and allow editing
+        setPost(null);
+        setTitle("");
+        setSlug("");
+        setExcerpt("");
+        setContent("");
+        setAuthor("TRADE90 Team");
+        setCategory("Basics");
+        setPublished(false);
+        setFeatured(false);
+        setFeaturedImage("");
+        setMetaTitle("");
+        setMetaDescription("");
+        setKeywords("");
+      }
+
+      setLoading(false);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postId]);
 
   async function uploadImage(file: File) {
-    // Validate type
     if (!file.type.startsWith("image/")) {
       alert("Please upload an image file.");
       return;
     }
-    // Validate size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       alert("Image size must be less than 5MB.");
       return;
@@ -131,9 +144,7 @@ export default function AdminPostEditor() {
       if (error) throw error;
 
       const { data } = supabase.storage.from("blog-images").getPublicUrl(fileName);
-      const publicUrl = data.publicUrl;
-
-      setFeaturedImage(publicUrl);
+      setFeaturedImage(data.publicUrl);
     } catch (e) {
       console.error(e);
       alert("Upload failed. Check bucket name + policies (blog-images).");
@@ -148,18 +159,16 @@ export default function AdminPostEditor() {
     await uploadImage(f);
   }
 
+  // ✅ Create + Update in one function
   async function save() {
-    if (!postId) return;
     if (!canSave) {
-      alert("Please fill Title, Slug, and Content.");
+      alert(published ? "Please fill Title, Slug, and Content to publish." : "Please fill Title and Slug.");
       return;
     }
 
     setSaving(true);
 
     const now = new Date().toISOString();
-
-    // If publishing now and no published_at, set it
     const publishedAt = published ? (post?.published_at ? post.published_at : now) : null;
 
     const payload = {
@@ -179,6 +188,27 @@ export default function AdminPostEditor() {
       updated_at: now,
     };
 
+    // ✅ CREATE MODE
+    if (!postId) {
+      const { data, error } = await supabase
+        .from("posts")
+        .insert([{ ...payload, created_at: now }])
+        .select("id")
+        .single();
+
+      setSaving(false);
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      alert("Created ✅");
+      router.push(`/admin/posts/${data.id}`);
+      return;
+    }
+
+    // ✅ UPDATE MODE
     const { error } = await supabase.from("posts").update(payload).eq("id", postId);
 
     setSaving(false);
@@ -188,7 +218,6 @@ export default function AdminPostEditor() {
       return;
     }
 
-    // Reload to reflect latest state
     await loadPost();
     alert("Saved ✅");
   }
@@ -211,15 +240,13 @@ export default function AdminPostEditor() {
   }
 
   function autoSlug() {
-    const s = slugify(title);
-    setSlug(s);
+    setSlug(slugify(title));
   }
 
-  if (loading) {
-    return <div className="p-6">Loading editor…</div>;
-  }
+  if (loading) return <div className="p-6">Loading editor…</div>;
 
-  if (!post) {
+  // Only show not-found if we are in edit mode with an id
+  if (!post && postId) {
     return (
       <div className="p-6">
         <div className="text-gray-700">Post not found.</div>
@@ -234,8 +261,8 @@ export default function AdminPostEditor() {
     <div className="max-w-7xl mx-auto p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <div className="text-2xl font-bold">Edit Post</div>
-          <div className="text-sm text-gray-600">ID: {postId}</div>
+          <div className="text-2xl font-bold">{postId ? "Edit Post" : "Create New Post"}</div>
+          {postId && <div className="text-sm text-gray-600">ID: {postId}</div>}
         </div>
 
         <div className="flex gap-2">
@@ -243,25 +270,29 @@ export default function AdminPostEditor() {
             ← Back
           </Link>
 
-          <Link className="px-4 py-2 rounded-lg border hover:bg-gray-50" href={`/post/${slug}`} target="_blank">
-            View
-          </Link>
+          {postId && slug && (
+            <Link className="px-4 py-2 rounded-lg border hover:bg-gray-50" href={`/post/${slug}`} target="_blank">
+              View
+            </Link>
+          )}
 
           <button
             onClick={save}
             disabled={saving || uploading || !canSave}
             className="px-4 py-2 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-60"
           >
-            {saving ? "Saving…" : "Save"}
+            {saving ? "Saving…" : postId ? "Save" : "Create"}
           </button>
 
-          <button
-            onClick={deletePost}
-            disabled={deleting}
-            className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-60"
-          >
-            {deleting ? "Deleting…" : "Delete"}
-          </button>
+          {postId && (
+            <button
+              onClick={deletePost}
+              disabled={deleting}
+              className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-60"
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </button>
+          )}
         </div>
       </div>
 
