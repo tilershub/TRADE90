@@ -5,10 +5,10 @@ import RelatedArticles from "@/components/RelatedArticles";
 
 export const revalidate = 60;
 
-type PageProps = { params: Promise<{ slug: string }> };
+type PageProps = { params: { slug: string } };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { slug } = await params;
+  const { slug } = params;
 
   const sb = await supabaseServer();
   const { data } = await sb
@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function PostPage({ params }: PageProps) {
-  const { slug } = await params;
+  const { slug } = params;
 
   const sb = await supabaseServer();
   const { data: post } = await sb.from("posts").select("*").eq("slug", slug).single();
@@ -68,6 +68,7 @@ export default async function PostPage({ params }: PageProps) {
 
       <div className="prose max-w-none whitespace-pre-wrap text-gray-800">{post.content}</div>
 
+      {/* ✅ Related articles */}
       <RelatedArticles current={{ id: post.id, category: post.category }} />
     </article>
   );
