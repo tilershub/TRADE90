@@ -27,7 +27,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         {GA_ID && (
           <>
-            {/* Google Analytics */}
             <Script
               src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
               strategy="afterInteractive"
@@ -45,7 +44,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </>
         )}
       </head>
-      <body>{children}</body>
+
+      <body>
+        {/* ✅ This line was missing */}
+        <Analytics />
+        {children}
+      </body>
     </html>
   );
 }
