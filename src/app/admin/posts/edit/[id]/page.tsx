@@ -54,8 +54,12 @@ export default function AdminPostEditor() {
   const seoDescCount = metaDescription.length;
 
   const canSave = useMemo(() => {
-    return title.trim().length > 0 && slug.trim().length > 0 && content.trim().length > 0;
-  }, [title, slug, content]);
+  // Draft can be saved without content
+  if (!published) return title.trim().length > 0 && slug.trim().length > 0;
+
+  // If publishing, require content too
+  return title.trim().length > 0 && slug.trim().length > 0 && content.trim().length > 0;
+}, [title, slug, content, published]);
 
   async function loadCategories() {
     const { data } = await supabase.from("categories").select("name").order("name");
