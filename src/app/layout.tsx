@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { BRAND, DEFAULT_DESC, DEFAULT_TITLE, SITE_URL } from "@/lib/constants";
+import Analytics from "@/components/Analytics";
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
