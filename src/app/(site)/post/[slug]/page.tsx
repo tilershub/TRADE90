@@ -5,10 +5,11 @@ import RelatedArticles from "@/components/RelatedArticles";
 
 export const revalidate = 60;
 
-type PageProps = { params: { slug: string } };
+// ✅ Next 15 in your build expects params to be a Promise in the generated types
+type PageProps = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { slug } = params;
+  const { slug } = await params;
 
   const sb = await supabaseServer();
   const { data } = await sb
@@ -21,18 +22,24 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const title = data.meta_title || data.title;
   const description = data.meta_description || data.excerpt || "";
-  const image = data.featured_image || "/og-image.jpg";
+  const image = data.featured_image || `${SITE_URL}/og-image.jpg`;
 
   return {
     title,
     description,
     alternates: { canonical: `${SITE_URL}/post/${data.slug}` },
-    openGraph: { title, description, type: "article", images: [{ url: image }] },
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      url: `${SITE_URL}/post/${data.slug}`,
+      images: [{ url: image }],
+    },
   };
 }
 
 export default async function PostPage({ params }: PageProps) {
-  const { slug } = params;
+  const { slug } = await params;
 
   const sb = await supabaseServer();
   const { data: post } = await sb.from("posts").select("*").eq("slug", slug).single();
@@ -68,7 +75,7 @@ export default async function PostPage({ params }: PageProps) {
 
       <div className="prose max-w-none whitespace-pre-wrap text-gray-800">{post.content}</div>
 
-      {/* ✅ Related articles */}
+      {/* ✅ Related Articles */}
       <RelatedArticles current={{ id: post.id, category: post.category }} />
     </article>
   );
